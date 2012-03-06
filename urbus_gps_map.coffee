@@ -25,8 +25,8 @@ google.setOnLoadCallback ->
 							strokeWeight: 2
 							clickable: false
 
-				# http://sverhy.ru/gmap/dragin.php?route_id=X&xmlhttp=XMLHttpRequest
 				do (thread) ->
+					# http://sverhy.ru/gmap/dragin.php?route_id=X&xmlhttp=XMLHttpRequest
 					$.getJSON "/proxy/urbus_route_vehicles_#{thread}",
 						(pos_data, status, req) ->
 							for pos in pos_data
