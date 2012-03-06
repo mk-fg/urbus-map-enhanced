@@ -1,8 +1,8 @@
 urbus-map-enhanced: a better interface to local (Yekaterinburg, RU) public transport real-time (position) data
 --------------------
 
-It's a simple browser (js-heavy) interface, utilizing Google Maps API to draw
-real-time positions of buses of a [local public transport
+It's a simple browser (js-heavy) interface, utilizing Google Maps API (v3) to
+draw real-time positions of buses of a [local public transport
 company](http://www.urbus.ru/).
 
 GPS data is provided via JSON API, but stock interface to it on the company site
@@ -26,9 +26,6 @@ Requirements:
 Usage notes:
 --------------------
 
-* Update Google Maps API key in `urbus_gps_map.html`. Note that v3 of the API
-  doesn't need the key at all, but I used v2 initially to be able to potentially
-  re-use js code from the original interface.
 * Update URLs on `$.getJSON` lines in `urbus_gps_map.coffee` (I'm using a local
   proxy URLs to cache API queries, to minimize the strain on the service).
 * `fetch_thread_ids.py` script produces JSON-encoded list of thread ids, which
