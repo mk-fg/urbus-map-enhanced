@@ -26,18 +26,30 @@ google.setOnLoadCallback ->
 							clickable: false
 
 				# http://sverhy.ru/gmap/dragin.php?route_id=X&xmlhttp=XMLHttpRequest
-				$.getJSON "/proxy/urbus_route_vehicles_#{thread}",
-					(pos_data, status, req) ->
-						for pos in pos_data
-							icon_size = 21*(Math.abs(Math.cos(pos.course*Math.PI/180))\
-								+ 1*Math.abs(Math.sin(pos.course*Math.PI/180)))
-							new gmaps.Marker
-								map: map
-								position: new gmaps.LatLng(pos.latitude, pos.longitude)
-								icon: new gmaps.MarkerImage(
-									"http://sverhy.ru/gmap/autoimg.php?angle=#{pos.course}",
-									new gmaps.Size(icon_size, icon_size),
-									null, new gmaps.Point(icon_size/2, icon_size/2) )
-								draggable: false
-								clickable: false
-								flat: true
+				do (thread) ->
+					$.getJSON "/proxy/urbus_route_vehicles_#{thread}",
+						(pos_data, status, req) ->
+							for pos in pos_data
+								marker = new gmaps.Marker
+									map: map
+									position: new gmaps.LatLng(pos.latitude, pos.longitude)
+									visible: false
+									draggable: false
+									clickable: false
+									flat: true
+								ib = new InfoBox
+									content:\
+										$("""<img src="arrow.png"
+												title="Bus №#{thread}, speed: #{pos.velocity} km/h" />""")\
+											.css(
+												transform: "rotate(#{pos.course}deg)"
+												'-moz-transform': "rotate(#{pos.course}deg)"
+												'-o-transform': "rotate(#{pos.course}deg)"
+												'-webkit-transform': "rotate(#{pos.course}deg)" ).get(0)
+									disableAutoPan: true
+									pixelOffset: new google.maps.Size(0, 0)
+									boxClass: 'marker_box'
+									pane: 'floatPane'
+									enableEventPropagation: true
+									closeBoxURL: ''
+								ib.open(map, marker)
