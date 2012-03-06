@@ -18,7 +18,7 @@ Requirements:
 --------------------
 
 * Any modern browser
-* [coffescript](http://jashkenas.github.com/coffee-script/)
+* (to recompile .js from .coffee) [coffescript](http://jashkenas.github.com/coffee-script/)
 * (to fetch thread ids only) [python 2.7](http://python.org)
 * (to fetch thread ids only) [lxml](http://lxml.de)
 
