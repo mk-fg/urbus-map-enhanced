@@ -5,13 +5,9 @@ It's a simple browser (js-heavy) interface, utilizing Google Maps API (v3) to
 draw real-time positions of buses of a [local public transport
 company](http://www.urbus.ru/).
 
-GPS data is provided via JSON API, but stock interface to it on the company site
-kinda sucks, hence the project.
-
-While putting together an initial version, I've noted that data on threads that
-are of most interest to me seem to be missing (guess they don't have tracking
-devices on buses there), so there probably won't be much progress until more
-data will be made available.
+gps data is provided via json api, but stock interface to it on the company site
+kinda sucks (to the point that js bails with a error for some maps), hence the
+project.
 
 
 Requirements:
@@ -26,9 +22,10 @@ Requirements:
 Usage notes:
 --------------------
 
-* Update URLs on `$.getJSON` lines in `urbus_gps_map.coffee` (I'm using a local
-  proxy URLs to cache API queries, to minimize the strain on the service).
-* `fetch_thread_ids.py` script produces JSON-encoded list of thread ids, which
-  doesn't seem to be available through API, and should be served for
-  /proxy/urbus_route_threads URL in js (or maybe encoded there statically).
-* Compile js with `coffee -c urbus_gps_map.coffee`.
+* Update urls on `$.getJSON` lines in `urbus_gps_map.coffee` (I'm using a local
+  proxy urls to cache api queries, to minimize the strain on the service).
+* `fetch_thread_ids.py` script produces json-encoded list of thread ids, which
+  doesn't seem to be available through api, and should be served for
+  /proxy/urbus_route_threads url in js (or maybe encoded there statically).
+* Compile coffee to js with `coffee -c urbus_gps_map.coffee` on changes or
+  change js directly.
