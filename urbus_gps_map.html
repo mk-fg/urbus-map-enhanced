@@ -17,9 +17,15 @@ html, body, div, table, td, tr, dt, dd, ul, ol, li, h1, h2, h3, h4, h5, a, p, im
 	{ padding: 0; margin: 0; font-family: 'Luxi Sans', sans; color: black; }
 html, body { height: 100% }
 
-/* #map_controls { float: left; width: 100%; } */
-/* #map_controls label { float: left; width: 5em; margin: .3em; } */
 #map_canvas { clear: both; width: 100%; height: 100%; }
+#map_controls { float: left; width: 100%; }
+#map_controls label {
+	float: left;
+	width: 5em;
+	padding: .2em;
+	border: 1px solid transparent;
+}
+#map_controls label.active { border-color: red; background: lightpink; }
 
 .css_marker {
 	width: 14px; /* bound to "style_marker_width" in js */

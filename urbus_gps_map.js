@@ -37,6 +37,62 @@
       line_over_lock = false;
       controls = $('#map_controls');
       _fn = function(thread) {
+        var handle, thread_highlight, thread_isolate;
+        thread_isolate = function(hide) {
+          var marker, xthread, _j, _len1, _results;
+          if (hide == null) hide = true;
+          _results = [];
+          for (_j = 0, _len1 = threads.length; _j < _len1; _j++) {
+            xthread = threads[_j];
+            if (thread === xthread) continue;
+            thread_lines[xthread].setOptions(hide ? style_line_hidden : style_line_inactive);
+            _results.push((function() {
+              var _k, _len2, _ref, _results1;
+              _ref = thread_markers[xthread];
+              _results1 = [];
+              for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
+                marker = _ref[_k];
+                if (hide) {
+                  _results1.push(marker.addClass('hidden'));
+                } else {
+                  _results1.push(marker.removeClass('active hidden'));
+                }
+              }
+              return _results1;
+            })());
+          }
+          return _results;
+        };
+        thread_highlight = function(highlight) {
+          var marker, _j, _len1, _ref;
+          if (highlight == null) highlight = true;
+          _ref = thread_markers[thread];
+          for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+            marker = _ref[_j];
+            if (highlight) {
+              marker.addClass('active');
+            } else {
+              marker.removeClass('active');
+            }
+          }
+          if (highlight) {
+            $("#_blk_" + thread).addClass('active');
+          } else {
+            $("#_blk_" + thread).removeClass('active');
+          }
+          return thread_lines[thread].setOptions(highlight ? style_line_active : style_line_inactive);
+        };
+        handle = $("<label\n	id=\"_blk_" + thread + "\"\n	for=\"_in_toggle_" + thread + "\">\n	<!-- <input type=\"checkbox\"\n		id=\"_in_toggle_" + thread + "\"\n		name=\"toggle_" + thread + "\" /> -->\n	<div>" + thread + "</div>\n</label>");
+        controls.append(handle);
+        handle = handle.get(0);
+        gmaps.event.addDomListener(handle, 'mouseover', function() {
+          thread_isolate(true);
+          return thread_highlight(true);
+        });
+        gmaps.event.addDomListener(handle, 'mouseout', function() {
+          thread_isolate(false);
+          return thread_highlight(false);
+        });
         $.getJSON("/proxy/urbus_route_thread_" + thread, function(pos_data, status, req) {
           var line, pos;
           line = thread_lines[thread] = new gmaps.Polyline({
@@ -54,24 +110,12 @@
           });
           line.setOptions(style_line_inactive);
           gmaps.event.addListener(line, 'mouseover', function() {
-            var marker, _j, _len1, _ref;
             if (line_over_lock) return;
-            _ref = thread_markers[thread];
-            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-              marker = _ref[_j];
-              marker.addClass('active');
-            }
-            return line.setOptions(style_line_active);
+            return thread_highlight(true);
           });
           return gmaps.event.addListener(line, 'mouseout', function() {
-            var marker, _j, _len1, _ref;
             if (line_over_lock) return;
-            _ref = thread_markers[thread];
-            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-              marker = _ref[_j];
-              marker.removeClass('active');
-            }
-            return line.setOptions(style_line_inactive);
+            return thread_highlight(false);
           });
         });
         return $.getJSON("/proxy/urbus_route_vehicles_" + thread, function(pos_data, status, req) {
@@ -108,44 +152,14 @@
             });
             ib.open(map, marker);
             gmaps.event.addDomListener(ib_marker, 'mouseover', function() {
-              var marker, xthread, _k, _l, _len2, _len3, _len4, _m, _ref, _ref1;
-              for (_k = 0, _len2 = threads.length; _k < _len2; _k++) {
-                xthread = threads[_k];
-                if (thread === xthread) continue;
-                thread_lines[xthread].setOptions(style_line_hidden);
-                _ref = thread_markers[xthread];
-                for (_l = 0, _len3 = _ref.length; _l < _len3; _l++) {
-                  marker = _ref[_l];
-                  marker.addClass('hidden');
-                }
-              }
-              _ref1 = thread_markers[thread];
-              for (_m = 0, _len4 = _ref1.length; _m < _len4; _m++) {
-                marker = _ref1[_m];
-                marker.addClass('active');
-              }
-              gmaps.event.trigger(thread_lines[thread], 'mouseover');
+              thread_isolate(true);
+              thread_highlight(true);
               return line_over_lock = true;
             });
             _results.push(gmaps.event.addDomListener(ib_marker, 'mouseout', function() {
-              var marker, xthread, _k, _l, _len2, _len3, _len4, _m, _ref, _ref1;
-              line_over_lock = false;
-              for (_k = 0, _len2 = threads.length; _k < _len2; _k++) {
-                xthread = threads[_k];
-                if (thread === xthread) continue;
-                thread_lines[xthread].setOptions(style_line_inactive);
-                _ref = thread_markers[xthread];
-                for (_l = 0, _len3 = _ref.length; _l < _len3; _l++) {
-                  marker = _ref[_l];
-                  marker.removeClass('active hidden');
-                }
-              }
-              _ref1 = thread_markers[thread];
-              for (_m = 0, _len4 = _ref1.length; _m < _len4; _m++) {
-                marker = _ref1[_m];
-                marker.removeClass('active');
-              }
-              return gmaps.event.trigger(thread_lines[thread], 'mouseout');
+              thread_isolate(false);
+              thread_highlight(false);
+              return line_over_lock = false;
             }));
           }
           return _results;
