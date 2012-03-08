@@ -49,7 +49,7 @@
                 flat: true
               });
               ib = new InfoBox({
-                content: $("<img src=\"arrow.png\"\ntitle=\"Bus №" + thread + ", speed: " + pos.velocity + " km/h\" />").css({
+                content: $("<img src=\"arrow.png\"\ntitle=\"Bus " + thread + ", speed: " + pos.velocity + " km/h\" />").css({
                   transform: "rotate(" + pos.course + "deg)",
                   '-moz-transform': "rotate(" + pos.course + "deg)",
                   '-o-transform': "rotate(" + pos.course + "deg)",

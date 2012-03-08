@@ -40,7 +40,7 @@ google.setOnLoadCallback ->
 								ib = new InfoBox
 									content:\
 										$("""<img src="arrow.png"
-												title="Bus №#{thread}, speed: #{pos.velocity} km/h" />""")\
+												title="Bus #{thread}, speed: #{pos.velocity} km/h" />""")\
 											.css(
 												transform: "rotate(#{pos.course}deg)"
 												'-moz-transform': "rotate(#{pos.course}deg)"

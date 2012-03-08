@@ -40,10 +40,9 @@ def main():
 	except SyntaxError: # last resort for "tag soup"
 		from lxml.html.soupparser import fromstring
 		threads = fromstring(threads)
-	threads = threads.xpath(source_threads_xpath)
+	threads = map(op.attrgetter('text'), threads.xpath(source_threads_xpath))
 
-	json.dump(
-		list(re.search('/routes/(\d+)/map/', a.attrib['href']).group(1) for a in threads),
+	json.dump( threads,
 		sys.stdout if not optz.dst_file else open(optz.dst_file, 'wb') )
 
 if __name__ == '__main__': main()
