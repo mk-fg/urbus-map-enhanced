@@ -29,56 +29,80 @@ google.setOnLoadCallback ->
 	# http://www.urbus.ru/passajiram/routes/
 	$.getJSON "/proxy/urbus_route_threads",
 		(threads, status, req) ->
+
+
+			## Interaction
+
 			thread_lines = {}
 			thread_markers = {}
-			line_over_lock = false
+			thread_handles = {}
+			lock_line = lock_marker = lock_handle = false
 			controls = $('#map_controls')
+
+			thread_isolate = (thread, hide=true) ->
+				for xthread in threads
+					continue if thread == xthread
+					thread_lines[xthread].setOptions( if hide\
+						then style_line_hidden else style_line_inactive )
+					for marker in thread_markers[xthread]
+						if hide\
+							then marker.addClass('hidden')\
+							else marker.removeClass('active hidden')
+
+			thread_highlight = (thread, highlight=true) ->
+				for marker in thread_markers[thread]
+					if highlight\
+						then marker.addClass('active')\
+						else marker.removeClass('active')
+				if highlight\
+					then $("#_blk_#{thread}").addClass('active')\
+					else $("#_blk_#{thread}").removeClass('active')
+				thread_lines[thread].setOptions( if highlight\
+					then style_line_active else style_line_inactive )
+
+			thread_lock = (thread) ->
+				if lock_handle
+					if lock_handle == thread
+						thread_isolate(thread, false)
+						thread_highlight(thread, false)
+						lock_line = lock_marker = lock_handle = false
+						return
+					else
+						thread_lock(lock_handle)
+				thread_isolate(thread, true)
+				thread_highlight(thread, true)
+				lock_line = lock_marker = lock_handle = thread
+
+
+			## Threads' init
 
 			for thread in threads
 				do (thread) ->
 
-					## Interaction
-					thread_isolate = (hide=true) ->
-						for xthread in threads
-							continue if thread == xthread
-							thread_lines[xthread].setOptions( if hide\
-								then style_line_hidden else style_line_inactive )
-							for marker in thread_markers[xthread]
-								if hide\
-									then marker.addClass('hidden')\
-									else marker.removeClass('active hidden')
-					thread_highlight = (highlight=true) ->
-						for marker in thread_markers[thread]
-							if highlight\
-								then marker.addClass('active')\
-								else marker.removeClass('active')
-						if highlight\
-							then $("#_blk_#{thread}").addClass('active')\
-							else $("#_blk_#{thread}").removeClass('active')
-						thread_lines[thread].setOptions( if highlight\
-							then style_line_active else style_line_inactive )
-
 					## Handle
 					handle = $("""
 						<label
-							id="_blk_#{thread}"
-							for="_in_toggle_#{thread}">
-							<!-- <input type="checkbox"
-								id="_in_toggle_#{thread}"
-								name="toggle_#{thread}" /> -->
-							<div>#{thread}</div>
+								id="_blk_#{thread}"
+								for="_in_toggle_#{thread}">
+							#{thread}
 						</label>""")
 					controls.append(handle)
+					thread_handles[thread] = handle
 					handle = handle.get(0)
 
 					gmaps.event.addDomListener(
+						handle, 'click', ->
+							thread_lock(thread) )
+					gmaps.event.addDomListener(
 						handle, 'mouseover', ->
-							thread_isolate(true)
-							thread_highlight(true) )
+							return if lock_handle
+							thread_isolate(thread, true)
+							thread_highlight(thread, true) )
 					gmaps.event.addDomListener(
 						handle, 'mouseout', ->
-							thread_isolate(false)
-							thread_highlight(false) )
+							return if lock_handle
+							thread_isolate(thread, false)
+							thread_highlight(thread, false) )
 
 					## Line
 					# http://sverhy.ru/gmap/getroutepoints.php?route_id=X&xmlhttp=XMLHttpRequest
@@ -93,13 +117,16 @@ google.setOnLoadCallback ->
 							line.setOptions(style_line_inactive)
 
 							gmaps.event.addListener(
+								line, 'click', ->
+									thread_lock(thread) )
+							gmaps.event.addListener(
 								line, 'mouseover', ->
-									return if line_over_lock
-									thread_highlight(true) )
+									return if lock_line
+									thread_highlight(thread, true) )
 							gmaps.event.addListener(
 								line, 'mouseout', ->
-									return if line_over_lock
-									thread_highlight(false) )
+									return if lock_line
+									thread_highlight(thread, false) )
 
 					## Markers
 					# http://sverhy.ru/gmap/dragin.php?route_id=X&xmlhttp=XMLHttpRequest
@@ -135,14 +162,19 @@ google.setOnLoadCallback ->
 								ib.open(map, marker)
 
 								gmaps.event.addDomListener(
+									ib_marker, 'click', ->
+										thread_lock(thread) )
+								gmaps.event.addDomListener(
 									ib_marker, 'mouseover', ->
-										thread_isolate(true)
-										thread_highlight(true)
-										line_over_lock = true )
+										return if lock_marker
+										thread_isolate(thread, true)
+										thread_highlight(thread, true)
+										lock_line = thread )
 								gmaps.event.addDomListener(
 									ib_marker, 'mouseout', ->
-										thread_isolate(false)
-										thread_highlight(false)
-										line_over_lock = false )
+										return if lock_marker
+										thread_isolate(thread, false)
+										thread_highlight(thread, false)
+										lock_line = false )
 
 			$(window).resize()

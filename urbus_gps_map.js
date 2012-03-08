@@ -31,67 +31,89 @@
       return $('#map_canvas').height($(window).height() - $('#map_controls').height());
     });
     return $.getJSON("/proxy/urbus_route_threads", function(threads, status, req) {
-      var controls, line_over_lock, thread, thread_lines, thread_markers, _fn, _i, _len;
+      var controls, lock_handle, lock_line, lock_marker, thread, thread_handles, thread_highlight, thread_isolate, thread_lines, thread_lock, thread_markers, _fn, _i, _len;
       thread_lines = {};
       thread_markers = {};
-      line_over_lock = false;
+      thread_handles = {};
+      lock_line = lock_marker = lock_handle = false;
       controls = $('#map_controls');
-      _fn = function(thread) {
-        var handle, thread_highlight, thread_isolate;
-        thread_isolate = function(hide) {
-          var marker, xthread, _j, _len1, _results;
-          if (hide == null) hide = true;
-          _results = [];
-          for (_j = 0, _len1 = threads.length; _j < _len1; _j++) {
-            xthread = threads[_j];
-            if (thread === xthread) continue;
-            thread_lines[xthread].setOptions(hide ? style_line_hidden : style_line_inactive);
-            _results.push((function() {
-              var _k, _len2, _ref, _results1;
-              _ref = thread_markers[xthread];
-              _results1 = [];
-              for (_k = 0, _len2 = _ref.length; _k < _len2; _k++) {
-                marker = _ref[_k];
-                if (hide) {
-                  _results1.push(marker.addClass('hidden'));
-                } else {
-                  _results1.push(marker.removeClass('active hidden'));
-                }
+      thread_isolate = function(thread, hide) {
+        var marker, xthread, _i, _len, _results;
+        if (hide == null) hide = true;
+        _results = [];
+        for (_i = 0, _len = threads.length; _i < _len; _i++) {
+          xthread = threads[_i];
+          if (thread === xthread) continue;
+          thread_lines[xthread].setOptions(hide ? style_line_hidden : style_line_inactive);
+          _results.push((function() {
+            var _j, _len1, _ref, _results1;
+            _ref = thread_markers[xthread];
+            _results1 = [];
+            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+              marker = _ref[_j];
+              if (hide) {
+                _results1.push(marker.addClass('hidden'));
+              } else {
+                _results1.push(marker.removeClass('active hidden'));
               }
-              return _results1;
-            })());
-          }
-          return _results;
-        };
-        thread_highlight = function(highlight) {
-          var marker, _j, _len1, _ref;
-          if (highlight == null) highlight = true;
-          _ref = thread_markers[thread];
-          for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
-            marker = _ref[_j];
-            if (highlight) {
-              marker.addClass('active');
-            } else {
-              marker.removeClass('active');
             }
-          }
+            return _results1;
+          })());
+        }
+        return _results;
+      };
+      thread_highlight = function(thread, highlight) {
+        var marker, _i, _len, _ref;
+        if (highlight == null) highlight = true;
+        _ref = thread_markers[thread];
+        for (_i = 0, _len = _ref.length; _i < _len; _i++) {
+          marker = _ref[_i];
           if (highlight) {
-            $("#_blk_" + thread).addClass('active');
+            marker.addClass('active');
           } else {
-            $("#_blk_" + thread).removeClass('active');
+            marker.removeClass('active');
           }
-          return thread_lines[thread].setOptions(highlight ? style_line_active : style_line_inactive);
-        };
-        handle = $("<label\n	id=\"_blk_" + thread + "\"\n	for=\"_in_toggle_" + thread + "\">\n	<!-- <input type=\"checkbox\"\n		id=\"_in_toggle_" + thread + "\"\n		name=\"toggle_" + thread + "\" /> -->\n	<div>" + thread + "</div>\n</label>");
+        }
+        if (highlight) {
+          $("#_blk_" + thread).addClass('active');
+        } else {
+          $("#_blk_" + thread).removeClass('active');
+        }
+        return thread_lines[thread].setOptions(highlight ? style_line_active : style_line_inactive);
+      };
+      thread_lock = function(thread) {
+        if (lock_handle) {
+          if (lock_handle === thread) {
+            thread_isolate(thread, false);
+            thread_highlight(thread, false);
+            lock_line = lock_marker = lock_handle = false;
+            return;
+          } else {
+            thread_lock(lock_handle);
+          }
+        }
+        thread_isolate(thread, true);
+        thread_highlight(thread, true);
+        return lock_line = lock_marker = lock_handle = thread;
+      };
+      _fn = function(thread) {
+        var handle;
+        handle = $("<label\n		id=\"_blk_" + thread + "\"\n		for=\"_in_toggle_" + thread + "\">\n	" + thread + "\n</label>");
         controls.append(handle);
+        thread_handles[thread] = handle;
         handle = handle.get(0);
+        gmaps.event.addDomListener(handle, 'click', function() {
+          return thread_lock(thread);
+        });
         gmaps.event.addDomListener(handle, 'mouseover', function() {
-          thread_isolate(true);
-          return thread_highlight(true);
+          if (lock_handle) return;
+          thread_isolate(thread, true);
+          return thread_highlight(thread, true);
         });
         gmaps.event.addDomListener(handle, 'mouseout', function() {
-          thread_isolate(false);
-          return thread_highlight(false);
+          if (lock_handle) return;
+          thread_isolate(thread, false);
+          return thread_highlight(thread, false);
         });
         $.getJSON("/proxy/urbus_route_thread_" + thread, function(pos_data, status, req) {
           var line, pos;
@@ -109,13 +131,16 @@
             clickable: true
           });
           line.setOptions(style_line_inactive);
+          gmaps.event.addListener(line, 'click', function() {
+            return thread_lock(thread);
+          });
           gmaps.event.addListener(line, 'mouseover', function() {
-            if (line_over_lock) return;
-            return thread_highlight(true);
+            if (lock_line) return;
+            return thread_highlight(thread, true);
           });
           return gmaps.event.addListener(line, 'mouseout', function() {
-            if (line_over_lock) return;
-            return thread_highlight(false);
+            if (lock_line) return;
+            return thread_highlight(thread, false);
           });
         });
         return $.getJSON("/proxy/urbus_route_vehicles_" + thread, function(pos_data, status, req) {
@@ -151,15 +176,20 @@
               closeBoxURL: ''
             });
             ib.open(map, marker);
+            gmaps.event.addDomListener(ib_marker, 'click', function() {
+              return thread_lock(thread);
+            });
             gmaps.event.addDomListener(ib_marker, 'mouseover', function() {
-              thread_isolate(true);
-              thread_highlight(true);
-              return line_over_lock = true;
+              if (lock_marker) return;
+              thread_isolate(thread, true);
+              thread_highlight(thread, true);
+              return lock_line = thread;
             });
             _results.push(gmaps.event.addDomListener(ib_marker, 'mouseout', function() {
-              thread_isolate(false);
-              thread_highlight(false);
-              return line_over_lock = false;
+              if (lock_marker) return;
+              thread_isolate(thread, false);
+              thread_highlight(thread, false);
+              return lock_line = false;
             }));
           }
           return _results;
