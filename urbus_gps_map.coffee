@@ -8,24 +8,46 @@ google.setOnLoadCallback ->
 		zoom: 12
 		mapTypeId: gmaps.MapTypeId.ROADMAP
 
+	style_line_active =
+		strokeOpacity: 1.0
+		strokeWeight: 3
+		strokeColor: '#f00'
+	style_line_inactive =
+		strokeOpacity: 0.5
+		strokeWeight: 2
+		strokeColor: '#00f'
+	style_line_hidden =
+		strokeOpacity: 0.1
+		strokeWeight: 2
+		strokeColor: '#00f'
+
 	# http://www.urbus.ru/passajiram/routes/
 	$.getJSON "/proxy/urbus_route_threads",
 		(threads, status, req) ->
+			thread_lines = {}
+			line_over_lock = false
+
 			for thread in threads
-
-				# http://sverhy.ru/gmap/getroutepoints.php?route_id=X&xmlhttp=XMLHttpRequest
-				$.getJSON "/proxy/urbus_route_thread_#{thread}",
-					(pos_data, status, req) ->
-						new gmaps.Polyline
-							map: map
-							path: (\
-								new gmaps.LatLng(pos.latitude, pos.longitude)\
-								for pos in pos_data )
-							strokeColor: '#0000ff'
-							strokeWeight: 2
-							clickable: false
-
 				do (thread) ->
+
+					# http://sverhy.ru/gmap/getroutepoints.php?route_id=X&xmlhttp=XMLHttpRequest
+					$.getJSON "/proxy/urbus_route_thread_#{thread}",
+						(pos_data, status, req) ->
+							line = thread_lines[thread] = new gmaps.Polyline
+								map: map
+								path: (\
+									new gmaps.LatLng(pos.latitude, pos.longitude)\
+									for pos in pos_data )
+								clickable: true
+							line.setOptions(style_line_inactive)
+
+							gmaps.event.addListener(
+								line, 'mouseover', ->
+									line.setOptions(style_line_active) unless line_over_lock )
+							gmaps.event.addListener(
+								line, 'mouseout', ->
+									line.setOptions(style_line_inactive) unless line_over_lock )
+
 					# http://sverhy.ru/gmap/dragin.php?route_id=X&xmlhttp=XMLHttpRequest
 					$.getJSON "/proxy/urbus_route_vehicles_#{thread}",
 						(pos_data, status, req) ->
@@ -37,15 +59,15 @@ google.setOnLoadCallback ->
 									draggable: false
 									clickable: false
 									flat: true
+								ib_marker = $("""<img src="arrow.png"
+										title="Bus #{thread}, speed: #{pos.velocity} km/h" />""")\
+									.css(
+										transform: "rotate(#{pos.course}deg)"
+										'-moz-transform': "rotate(#{pos.course}deg)"
+										'-o-transform': "rotate(#{pos.course}deg)"
+										'-webkit-transform': "rotate(#{pos.course}deg)" ).get(0)
 								ib = new InfoBox
-									content:\
-										$("""<img src="arrow.png"
-												title="Bus #{thread}, speed: #{pos.velocity} km/h" />""")\
-											.css(
-												transform: "rotate(#{pos.course}deg)"
-												'-moz-transform': "rotate(#{pos.course}deg)"
-												'-o-transform': "rotate(#{pos.course}deg)"
-												'-webkit-transform': "rotate(#{pos.course}deg)" ).get(0)
+									content: ib_marker
 									disableAutoPan: true
 									pixelOffset: new google.maps.Size(0, 0)
 									boxClass: 'marker_box'
@@ -53,3 +75,16 @@ google.setOnLoadCallback ->
 									enableEventPropagation: true
 									closeBoxURL: ''
 								ib.open(map, marker)
+
+								gmaps.event.addDomListener(
+									ib_marker, 'mouseover', ->
+										for _, line of thread_lines
+											line.setOptions(style_line_hidden)
+										gmaps.event.trigger(thread_lines[thread], 'mouseover')
+										line_over_lock = true )
+								gmaps.event.addDomListener(
+									ib_marker, 'mouseout', ->
+										for _, line of thread_lines
+											line.setOptions(style_line_inactive)
+										gmaps.event.trigger(thread_lines[thread], 'mouseout')
+										line_over_lock = false )

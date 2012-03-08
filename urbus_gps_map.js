@@ -4,39 +4,61 @@
   google.load('jquery', '1.7.1');
 
   google.setOnLoadCallback(function() {
-    var gmaps, map;
+    var gmaps, map, style_line_active, style_line_hidden, style_line_inactive;
     gmaps = google.maps;
     map = new gmaps.Map($('#map_canvas').get(0), {
       center: new gmaps.LatLng(56.8333, 60.5833),
       zoom: 12,
       mapTypeId: gmaps.MapTypeId.ROADMAP
     });
+    style_line_active = {
+      strokeOpacity: 1.0,
+      strokeWeight: 3,
+      strokeColor: '#f00'
+    };
+    style_line_inactive = {
+      strokeOpacity: 0.5,
+      strokeWeight: 2,
+      strokeColor: '#00f'
+    };
+    style_line_hidden = {
+      strokeOpacity: 0.1,
+      strokeWeight: 2,
+      strokeColor: '#00f'
+    };
     return $.getJSON("/proxy/urbus_route_threads", function(threads, status, req) {
-      var thread, _i, _len, _results;
+      var line_over_lock, thread, thread_lines, _i, _len, _results;
+      thread_lines = {};
+      line_over_lock = false;
       _results = [];
       for (_i = 0, _len = threads.length; _i < _len; _i++) {
         thread = threads[_i];
-        $.getJSON("/proxy/urbus_route_thread_" + thread, function(pos_data, status, req) {
-          var pos;
-          return new gmaps.Polyline({
-            map: map,
-            path: (function() {
-              var _j, _len1, _results1;
-              _results1 = [];
-              for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
-                pos = pos_data[_j];
-                _results1.push(new gmaps.LatLng(pos.latitude, pos.longitude));
-              }
-              return _results1;
-            })(),
-            strokeColor: '#0000ff',
-            strokeWeight: 2,
-            clickable: false
-          });
-        });
         _results.push((function(thread) {
+          $.getJSON("/proxy/urbus_route_thread_" + thread, function(pos_data, status, req) {
+            var line, pos;
+            line = thread_lines[thread] = new gmaps.Polyline({
+              map: map,
+              path: (function() {
+                var _j, _len1, _results1;
+                _results1 = [];
+                for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
+                  pos = pos_data[_j];
+                  _results1.push(new gmaps.LatLng(pos.latitude, pos.longitude));
+                }
+                return _results1;
+              })(),
+              clickable: true
+            });
+            line.setOptions(style_line_inactive);
+            gmaps.event.addListener(line, 'mouseover', function() {
+              if (!line_over_lock) return line.setOptions(style_line_active);
+            });
+            return gmaps.event.addListener(line, 'mouseout', function() {
+              if (!line_over_lock) return line.setOptions(style_line_inactive);
+            });
+          });
           return $.getJSON("/proxy/urbus_route_vehicles_" + thread, function(pos_data, status, req) {
-            var ib, marker, pos, _j, _len1, _results1;
+            var ib, ib_marker, marker, pos, _j, _len1, _results1;
             _results1 = [];
             for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
               pos = pos_data[_j];
@@ -48,13 +70,14 @@
                 clickable: false,
                 flat: true
               });
+              ib_marker = $("<img src=\"arrow.png\"\ntitle=\"Bus " + thread + ", speed: " + pos.velocity + " km/h\" />").css({
+                transform: "rotate(" + pos.course + "deg)",
+                '-moz-transform': "rotate(" + pos.course + "deg)",
+                '-o-transform': "rotate(" + pos.course + "deg)",
+                '-webkit-transform': "rotate(" + pos.course + "deg)"
+              }).get(0);
               ib = new InfoBox({
-                content: $("<img src=\"arrow.png\"\ntitle=\"Bus " + thread + ", speed: " + pos.velocity + " km/h\" />").css({
-                  transform: "rotate(" + pos.course + "deg)",
-                  '-moz-transform': "rotate(" + pos.course + "deg)",
-                  '-o-transform': "rotate(" + pos.course + "deg)",
-                  '-webkit-transform': "rotate(" + pos.course + "deg)"
-                }).get(0),
+                content: ib_marker,
                 disableAutoPan: true,
                 pixelOffset: new google.maps.Size(0, 0),
                 boxClass: 'marker_box',
@@ -62,7 +85,25 @@
                 enableEventPropagation: true,
                 closeBoxURL: ''
               });
-              _results1.push(ib.open(map, marker));
+              ib.open(map, marker);
+              gmaps.event.addDomListener(ib_marker, 'mouseover', function() {
+                var line, _;
+                for (_ in thread_lines) {
+                  line = thread_lines[_];
+                  line.setOptions(style_line_hidden);
+                }
+                gmaps.event.trigger(thread_lines[thread], 'mouseover');
+                return line_over_lock = true;
+              });
+              _results1.push(gmaps.event.addDomListener(ib_marker, 'mouseout', function() {
+                var line, _;
+                for (_ in thread_lines) {
+                  line = thread_lines[_];
+                  line.setOptions(style_line_inactive);
+                }
+                gmaps.event.trigger(thread_lines[thread], 'mouseout');
+                return line_over_lock = false;
+              }));
             }
             return _results1;
           });
