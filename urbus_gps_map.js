@@ -4,7 +4,7 @@
   google.load('jquery', '1.7.1');
 
   google.setOnLoadCallback(function() {
-    var gmaps, map, style_line_active, style_line_hidden, style_line_inactive;
+    var gmaps, map, style_line_active, style_line_hidden, style_line_inactive, style_marker_width;
     gmaps = google.maps;
     map = new gmaps.Map($('#map_canvas').get(0), {
       center: new gmaps.LatLng(56.8333, 60.5833),
@@ -14,102 +14,148 @@
     style_line_active = {
       strokeOpacity: 1.0,
       strokeWeight: 3,
-      strokeColor: '#f00'
+      strokeColor: 'red'
     };
     style_line_inactive = {
       strokeOpacity: 0.5,
       strokeWeight: 2,
-      strokeColor: '#00f'
+      strokeColor: 'blue'
     };
     style_line_hidden = {
       strokeOpacity: 0.1,
       strokeWeight: 2,
-      strokeColor: '#00f'
+      strokeColor: 'blue'
     };
+    style_marker_width = 14;
+    $(window).resize(function() {
+      return $('#map_canvas').height($(window).height() - $('#map_controls').height());
+    });
     return $.getJSON("/proxy/urbus_route_threads", function(threads, status, req) {
-      var line_over_lock, thread, thread_lines, _i, _len, _results;
+      var controls, line_over_lock, thread, thread_lines, thread_markers, _fn, _i, _len;
       thread_lines = {};
+      thread_markers = {};
       line_over_lock = false;
-      _results = [];
+      controls = $('#map_controls');
+      _fn = function(thread) {
+        $.getJSON("/proxy/urbus_route_thread_" + thread, function(pos_data, status, req) {
+          var line, pos;
+          line = thread_lines[thread] = new gmaps.Polyline({
+            map: map,
+            path: (function() {
+              var _j, _len1, _results;
+              _results = [];
+              for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
+                pos = pos_data[_j];
+                _results.push(new gmaps.LatLng(pos.latitude, pos.longitude));
+              }
+              return _results;
+            })(),
+            clickable: true
+          });
+          line.setOptions(style_line_inactive);
+          gmaps.event.addListener(line, 'mouseover', function() {
+            var marker, _j, _len1, _ref;
+            if (line_over_lock) return;
+            _ref = thread_markers[thread];
+            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+              marker = _ref[_j];
+              marker.addClass('active');
+            }
+            return line.setOptions(style_line_active);
+          });
+          return gmaps.event.addListener(line, 'mouseout', function() {
+            var marker, _j, _len1, _ref;
+            if (line_over_lock) return;
+            _ref = thread_markers[thread];
+            for (_j = 0, _len1 = _ref.length; _j < _len1; _j++) {
+              marker = _ref[_j];
+              marker.removeClass('active');
+            }
+            return line.setOptions(style_line_inactive);
+          });
+        });
+        return $.getJSON("/proxy/urbus_route_vehicles_" + thread, function(pos_data, status, req) {
+          var ib, ib_marker, marker, markers, pos, _j, _len1, _results;
+          markers = thread_markers[thread] = [];
+          _results = [];
+          for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
+            pos = pos_data[_j];
+            pos.course += 180;
+            marker = new gmaps.Marker({
+              map: map,
+              position: new gmaps.LatLng(pos.latitude, pos.longitude),
+              visible: false,
+              draggable: false,
+              clickable: false,
+              flat: true
+            });
+            ib_marker = $("<div class=\"css_marker\"\ntitle=\"Bus " + thread + ", speed: " + pos.velocity + " km/h\"></div>").css({
+              transform: "translateX(-" + (style_marker_width / 2) + "px) rotate(" + pos.course + "deg)",
+              '-moz-transform': "translateX(-" + (style_marker_width / 2) + "px) rotate(" + pos.course + "deg)",
+              '-o-transform': "translateX(-" + (style_marker_width / 2) + "px) rotate(" + pos.course + "deg)",
+              '-webkit-transform': "translateX(-" + (style_marker_width / 2) + "px) rotate(" + pos.course + "deg)"
+            });
+            markers.push(ib_marker);
+            ib_marker = ib_marker.get(0);
+            ib = new InfoBox({
+              content: ib_marker,
+              disableAutoPan: true,
+              pixelOffset: new google.maps.Size(0, 0),
+              boxClass: 'marker_box',
+              pane: 'floatPane',
+              enableEventPropagation: true,
+              closeBoxURL: ''
+            });
+            ib.open(map, marker);
+            gmaps.event.addDomListener(ib_marker, 'mouseover', function() {
+              var marker, xthread, _k, _l, _len2, _len3, _len4, _m, _ref, _ref1;
+              for (_k = 0, _len2 = threads.length; _k < _len2; _k++) {
+                xthread = threads[_k];
+                if (thread === xthread) continue;
+                thread_lines[xthread].setOptions(style_line_hidden);
+                _ref = thread_markers[xthread];
+                for (_l = 0, _len3 = _ref.length; _l < _len3; _l++) {
+                  marker = _ref[_l];
+                  marker.addClass('hidden');
+                }
+              }
+              _ref1 = thread_markers[thread];
+              for (_m = 0, _len4 = _ref1.length; _m < _len4; _m++) {
+                marker = _ref1[_m];
+                marker.addClass('active');
+              }
+              gmaps.event.trigger(thread_lines[thread], 'mouseover');
+              return line_over_lock = true;
+            });
+            _results.push(gmaps.event.addDomListener(ib_marker, 'mouseout', function() {
+              var marker, xthread, _k, _l, _len2, _len3, _len4, _m, _ref, _ref1;
+              line_over_lock = false;
+              for (_k = 0, _len2 = threads.length; _k < _len2; _k++) {
+                xthread = threads[_k];
+                if (thread === xthread) continue;
+                thread_lines[xthread].setOptions(style_line_inactive);
+                _ref = thread_markers[xthread];
+                for (_l = 0, _len3 = _ref.length; _l < _len3; _l++) {
+                  marker = _ref[_l];
+                  marker.removeClass('active hidden');
+                }
+              }
+              _ref1 = thread_markers[thread];
+              for (_m = 0, _len4 = _ref1.length; _m < _len4; _m++) {
+                marker = _ref1[_m];
+                marker.removeClass('active');
+              }
+              return gmaps.event.trigger(thread_lines[thread], 'mouseout');
+            }));
+          }
+          return _results;
+        });
+      };
       for (_i = 0, _len = threads.length; _i < _len; _i++) {
         thread = threads[_i];
-        _results.push((function(thread) {
-          $.getJSON("/proxy/urbus_route_thread_" + thread, function(pos_data, status, req) {
-            var line, pos;
-            line = thread_lines[thread] = new gmaps.Polyline({
-              map: map,
-              path: (function() {
-                var _j, _len1, _results1;
-                _results1 = [];
-                for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
-                  pos = pos_data[_j];
-                  _results1.push(new gmaps.LatLng(pos.latitude, pos.longitude));
-                }
-                return _results1;
-              })(),
-              clickable: true
-            });
-            line.setOptions(style_line_inactive);
-            gmaps.event.addListener(line, 'mouseover', function() {
-              if (!line_over_lock) return line.setOptions(style_line_active);
-            });
-            return gmaps.event.addListener(line, 'mouseout', function() {
-              if (!line_over_lock) return line.setOptions(style_line_inactive);
-            });
-          });
-          return $.getJSON("/proxy/urbus_route_vehicles_" + thread, function(pos_data, status, req) {
-            var ib, ib_marker, marker, pos, _j, _len1, _results1;
-            _results1 = [];
-            for (_j = 0, _len1 = pos_data.length; _j < _len1; _j++) {
-              pos = pos_data[_j];
-              marker = new gmaps.Marker({
-                map: map,
-                position: new gmaps.LatLng(pos.latitude, pos.longitude),
-                visible: false,
-                draggable: false,
-                clickable: false,
-                flat: true
-              });
-              ib_marker = $("<img src=\"arrow.png\"\ntitle=\"Bus " + thread + ", speed: " + pos.velocity + " km/h\" />").css({
-                transform: "rotate(" + pos.course + "deg)",
-                '-moz-transform': "rotate(" + pos.course + "deg)",
-                '-o-transform': "rotate(" + pos.course + "deg)",
-                '-webkit-transform': "rotate(" + pos.course + "deg)"
-              }).get(0);
-              ib = new InfoBox({
-                content: ib_marker,
-                disableAutoPan: true,
-                pixelOffset: new google.maps.Size(0, 0),
-                boxClass: 'marker_box',
-                pane: 'floatPane',
-                enableEventPropagation: true,
-                closeBoxURL: ''
-              });
-              ib.open(map, marker);
-              gmaps.event.addDomListener(ib_marker, 'mouseover', function() {
-                var line, _;
-                for (_ in thread_lines) {
-                  line = thread_lines[_];
-                  line.setOptions(style_line_hidden);
-                }
-                gmaps.event.trigger(thread_lines[thread], 'mouseover');
-                return line_over_lock = true;
-              });
-              _results1.push(gmaps.event.addDomListener(ib_marker, 'mouseout', function() {
-                var line, _;
-                for (_ in thread_lines) {
-                  line = thread_lines[_];
-                  line.setOptions(style_line_inactive);
-                }
-                gmaps.event.trigger(thread_lines[thread], 'mouseout');
-                return line_over_lock = false;
-              }));
-            }
-            return _results1;
-          });
-        })(thread));
+        _fn(thread);
       }
-      return _results;
+      return $(window).resize();
     });
   });
 

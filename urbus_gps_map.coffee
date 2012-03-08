@@ -11,24 +11,39 @@ google.setOnLoadCallback ->
 	style_line_active =
 		strokeOpacity: 1.0
 		strokeWeight: 3
-		strokeColor: '#f00'
+		strokeColor: 'red'
 	style_line_inactive =
 		strokeOpacity: 0.5
 		strokeWeight: 2
-		strokeColor: '#00f'
+		strokeColor: 'blue'
 	style_line_hidden =
 		strokeOpacity: 0.1
 		strokeWeight: 2
-		strokeColor: '#00f'
+		strokeColor: 'blue'
+	style_marker_width = 14
+
+	$(window).resize ->
+		$('#map_canvas').height(
+			$(window).height() - $('#map_controls').height() )
 
 	# http://www.urbus.ru/passajiram/routes/
 	$.getJSON "/proxy/urbus_route_threads",
 		(threads, status, req) ->
 			thread_lines = {}
+			thread_markers = {}
 			line_over_lock = false
+			controls = $('#map_controls')
 
 			for thread in threads
 				do (thread) ->
+
+					# controls.append("""
+					# 	<label for="_in_toggle_#{thread}">
+					# 		<input type="checkbox"
+					# 			id="_in_toggle_#{thread}"
+					# 			name="toggle_#{thread}" />
+					# 		#{thread}
+					# 	</label>""")
 
 					# http://sverhy.ru/gmap/getroutepoints.php?route_id=X&xmlhttp=XMLHttpRequest
 					$.getJSON "/proxy/urbus_route_thread_#{thread}",
@@ -43,15 +58,23 @@ google.setOnLoadCallback ->
 
 							gmaps.event.addListener(
 								line, 'mouseover', ->
-									line.setOptions(style_line_active) unless line_over_lock )
+									return if line_over_lock
+									for marker in thread_markers[thread]
+										marker.addClass('active')
+									line.setOptions(style_line_active) )
 							gmaps.event.addListener(
 								line, 'mouseout', ->
-									line.setOptions(style_line_inactive) unless line_over_lock )
+									return if line_over_lock
+									for marker in thread_markers[thread]
+										marker.removeClass('active')
+									line.setOptions(style_line_inactive) )
 
 					# http://sverhy.ru/gmap/dragin.php?route_id=X&xmlhttp=XMLHttpRequest
 					$.getJSON "/proxy/urbus_route_vehicles_#{thread}",
 						(pos_data, status, req) ->
+							markers = thread_markers[thread] = []
 							for pos in pos_data
+								pos.course += 180
 								marker = new gmaps.Marker
 									map: map
 									position: new gmaps.LatLng(pos.latitude, pos.longitude)
@@ -59,13 +82,15 @@ google.setOnLoadCallback ->
 									draggable: false
 									clickable: false
 									flat: true
-								ib_marker = $("""<img src="arrow.png"
-										title="Bus #{thread}, speed: #{pos.velocity} km/h" />""")\
+								ib_marker = $("""<div class="css_marker"
+										title="Bus #{thread}, speed: #{pos.velocity} km/h"></div>""")\
 									.css(
-										transform: "rotate(#{pos.course}deg)"
-										'-moz-transform': "rotate(#{pos.course}deg)"
-										'-o-transform': "rotate(#{pos.course}deg)"
-										'-webkit-transform': "rotate(#{pos.course}deg)" ).get(0)
+										transform: "translateX(-#{style_marker_width/2}px) rotate(#{pos.course}deg)"
+										'-moz-transform': "translateX(-#{style_marker_width/2}px) rotate(#{pos.course}deg)"
+										'-o-transform': "translateX(-#{style_marker_width/2}px) rotate(#{pos.course}deg)"
+										'-webkit-transform': "translateX(-#{style_marker_width/2}px) rotate(#{pos.course}deg)" )
+								markers.push(ib_marker)
+								ib_marker = ib_marker.get(0)
 								ib = new InfoBox
 									content: ib_marker
 									disableAutoPan: true
@@ -78,13 +103,25 @@ google.setOnLoadCallback ->
 
 								gmaps.event.addDomListener(
 									ib_marker, 'mouseover', ->
-										for _, line of thread_lines
-											line.setOptions(style_line_hidden)
+										for xthread in threads
+											continue if thread == xthread
+											thread_lines[xthread].setOptions(style_line_hidden)
+											for marker in thread_markers[xthread]
+												marker.addClass('hidden')
+										for marker in thread_markers[thread]
+											marker.addClass('active')
 										gmaps.event.trigger(thread_lines[thread], 'mouseover')
 										line_over_lock = true )
 								gmaps.event.addDomListener(
 									ib_marker, 'mouseout', ->
-										for _, line of thread_lines
-											line.setOptions(style_line_inactive)
-										gmaps.event.trigger(thread_lines[thread], 'mouseout')
-										line_over_lock = false )
+										line_over_lock = false
+										for xthread in threads
+											continue if thread == xthread
+											thread_lines[xthread].setOptions(style_line_inactive)
+											for marker in thread_markers[xthread]
+												marker.removeClass('active hidden')
+										for marker in thread_markers[thread]
+											marker.removeClass('active')
+										gmaps.event.trigger(thread_lines[thread], 'mouseout') )
+
+			$(window).resize()
