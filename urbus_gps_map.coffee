@@ -54,9 +54,11 @@ google.setOnLoadCallback ->
 					if highlight\
 						then marker.addClass('active')\
 						else marker.removeClass('active')
-				if highlight\
-					then $("#_blk_#{thread}").addClass('active')\
-					else $("#_blk_#{thread}").removeClass('active')
+				if highlight
+					$('#map_controls label').removeClass('active')
+					$("#_blk_#{thread}").addClass('active')
+				else
+					$("#_blk_#{thread}").removeClass('active')
 				thread_lines[thread].setOptions( if highlight\
 					then style_line_active else style_line_inactive )
 

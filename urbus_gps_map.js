@@ -75,6 +75,7 @@
           }
         }
         if (highlight) {
+          $('#map_controls label').removeClass('active');
           $("#_blk_" + thread).addClass('active');
         } else {
           $("#_blk_" + thread).removeClass('active');
